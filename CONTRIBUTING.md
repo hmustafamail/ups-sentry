@@ -17,8 +17,9 @@ To get the good estimate, add your model to [profiles.toml](src/ups_sentry/profi
 
 ```toml
 [bluetti.AC180]
+eco_registers = { AC = 2017, DC = 2014 }   # from the library's device file for your model
 capacity_wh = 1152.0
-overhead_watts = 20.0
+overhead_watts = 20.0                      # an example: use your own measurement
 source = "Nameplate; overhead from one drain to the cut at 60 W output."
 ```
 
@@ -26,8 +27,8 @@ Get `overhead_watts` from `ups-sentry calibrate` (see the README). A measured nu
 `source`. Without a measurement, leave out both numbers rather than guessing: a low overhead makes the estimate read long,
 which is the dangerous direction.
 
-If the library knows your model's ECO switches, `eco-off` works without any profile entry. Adding `eco_registers` is
-optional, and tells the driver to stop if the library's register map ever changes; the tests check it against the library.
+Every profile needs `eco_registers` (`{}` for a model with no ECO switch). It's what turns automatic ECO off on for that
+model, and it tells the driver to stop if the library's register map ever changes; the tests check it against the library.
 
 ## Add a brand
 
@@ -44,7 +45,8 @@ These protect the machines behind someone's UPS:
 
 - A write may only ever switch auto-off (ECO) off. No other setting, no other value.
 - Every write must be confirmed: the device's reply checked, and the setting read back.
-- `monitor.eco_auto_off` stays off by default.
+- Automatic ECO off stays on by default only for models with a profile; a model without one must refuse to start until
+  its owner chooses.
 
-The estimator is the part most easily broken without anyone noticing. `tests/test_regression.py` holds it to its recorded
-answers on a real drain, so a change to the estimate must be deliberate, and must say why those numbers moved.
+The estimator is the part most easily broken without anyone noticing. `tests/test_regression.py` holds it to the answers the
+original monitor gave on a real drain, so a change to the estimate must be deliberate, and must say why those numbers moved.

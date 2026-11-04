@@ -14,6 +14,10 @@ KNOWN_KEYS = {"capacity_wh", "overhead_watts", "eco_registers", "source"}
 
 @pytest.mark.parametrize("driver, model, profile", PROFILES, ids=[f"{d}.{m}" for d, m, _ in PROFILES])
 class TestEveryProfile:
+    def test_says_where_the_eco_switches_are(self, driver, model, profile):
+        """Without it, `ups-sentry run` refuses the model, so a profile that lacks it would look supported and not be."""
+        assert "eco_registers" in profile
+
     def test_only_known_keys(self, driver, model, profile):
         assert set(profile) <= KNOWN_KEYS
 

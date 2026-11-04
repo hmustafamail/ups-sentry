@@ -36,6 +36,7 @@ ups_sentry = ["profiles.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["research"]
 
 [tool.ruff]
 line-length = 120

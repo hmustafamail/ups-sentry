@@ -12,7 +12,7 @@ Power stations make decent UPSes, with three problems this fixes:
 
 - **ECO mode can cut your output.** It switches the AC or DC output off at low load, which takes down a small server
   sitting behind it. On encrypted BLUETTI models the usual library refuses writes, so you can only fix it from the app.
-  ups-sentry can switch it off and keep it off.
+  ups-sentry switches it off and keeps it off.
 - **The station's own time-left estimate is not good enough to act on.** On a BLUETTI Elite 10 it leaves out the
   inverter's own draw of about 15 W and jumps with every spike in load (196-301 minutes within minutes).
 - **Nothing tells your other software.** ups-sentry keeps a small JSON status file that any program can read.
@@ -31,7 +31,7 @@ and scored at 2-minute polling:
 | true time left when it first said 15 min | 15.1 min | |
 
 **This is one drain of one unit at one load, and the method was chosen on that same drain,** so take the small numbers
-as a best case. A second drain at a higher load is planned as a real test. Reproduce the numbers above with
+as a best case. A second drain at a higher load is planned as a real test ([docs/drills.md](docs/drills.md)). Reproduce the numbers above with
 `ups-sentry --set device.driver=bluetti --set device.model=EL10 score tests/fixtures/drain_2026-10-16.csv`.
 
 ## Supported
@@ -39,8 +39,7 @@ as a best case. A second drain at a higher load is planned as a real test. Repro
 | | Status |
 |---|---|
 | BLUETTI Elite 10 (EL10) on macOS | this code ran for weeks inside its original application: reads, ECO off and the estimate |
-| Other models [bluetti-bt-lib](https://github.com/Patrick762/bluetti-bt-lib) knows | reads should work; untested |
-| ECO off on other models | where the library knows the switch; untested. Every write is checked (below) |
+| Other models [bluetti-bt-lib](https://github.com/Patrick762/bluetti-bt-lib) knows | reads should work; untested. `run` needs a choice about ECO (below) |
 | Linux | should work (Bluetooth goes through [bleak](https://github.com/hbldh/bleak)); untested |
 
 A model with no capacity and overhead in [profiles.toml](src/ups_sentry/profiles.toml) falls back to an estimate from the
@@ -62,6 +61,27 @@ On macOS, only a process started from a real logged-in Terminal window can use B
 
 Only one program can talk to the station at a time, so close the vendor's app and stop the monitor before `probe`,
 `eco-off` or `drill`.
+
+With ECO off the inverter stays live all the time, so it draws from the battery continuously. That's the overhead the
+estimate counts, and why the runtime is shorter than capacity / load suggests.
+
+## Troubleshooting
+
+**"Could not recognize BLUETTI device" on every read.** Check whether the vendor's app is open or connected on a phone. These
+stations allow one Bluetooth connection at a time, so a phone holding it starves the monitor, even though nothing is wrong
+with the pairing or the address. Close the app and wait for the next read.
+
+**The monitor reports an outage that didn't happen.** A single misread of the input voltage can't do this, since an outage
+needs 3 reads in a row and a 2% fall in the battery. Raise `monitor.consecutive_reads_to_confirm_transition` or
+`monitor.min_battery_pct_drop_to_confirm_outage` if you still see one.
+
+## More
+
+- [docs/drills.md](docs/drills.md): how to test a station to its cut, with results.
+- [docs/history.md](docs/history.md): what was learned building this, and why it works the way it does.
+- [docs/roadmap.md](docs/roadmap.md): what's next.
+- `scripts/`: diagnostics (the key exchange, a computer's own draw beside the station's). `research/`: the candidate
+  estimates compared on the first drain.
 
 ## Settings
 
@@ -108,7 +128,13 @@ If `checked_at` is old, the monitor isn't running: treat the power state as unkn
 
 ## Writes
 
-ups-sentry writes to a station only to switch ECO off, and only if you run `eco-off` or set `monitor.eco_auto_off`.
+ups-sentry writes to a station only to switch ECO off. `ups-sentry run` does that **by default** on a model with a profile,
+because the alternative is the station cutting power to your computer for drawing too little. To be alerted instead, set
+`monitor.eco_auto_off = false`.
+
+A model without a profile refuses to start, with an error, until you choose: `true` uses the driver library's register
+map (untested on that model), and `false` only alerts you when ECO is on. Better still, add the model's profile.
+
 On every write it writes only the ECO switches and only the value 0; stops if the library's register map disagrees with the
 model's profile; requires the station to echo the write exactly; and reads the switch back on the same connection.
 

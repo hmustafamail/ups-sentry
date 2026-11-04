@@ -1,12 +1,14 @@
 """Tests for src/ups_sentry/cli.py. pytest tests/test_cli.py -v"""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from ups_sentry.cli import main
+from ups_sentry.config import NoEcoProfileError
 from ups_sentry.device import DeviceReadError, DeviceState
 from ups_sentry.drills import measure_drain, read_log
 from ups_sentry.drivers import create_device
@@ -68,6 +70,11 @@ class TestCommands:
         assert main(["--config", config, "eco-off"]) == 0
         write.assert_not_called()
 
+    def test_eco_off_refuses_an_unknown_output(self, config, mocker):
+        write = mocker.patch("ups_sentry.drivers.bluetti.BluettiDevice.switch_eco_off")
+        assert main(["--config", config, "eco-off", "USB", "--yes"]) == 2
+        write.assert_not_called()
+
     def test_eco_off_writes_both_when_confirmed(self, config, mocker):
         write = mocker.patch("ups_sentry.drivers.bluetti.BluettiDevice.switch_eco_off", return_value=frozenset())
         mocker.patch("builtins.input", return_value="yes")
@@ -101,6 +108,29 @@ class TestLoops:
         assert main(["--config", config, "run"]) == 0
         status = read_status(tmp_path / "status.json")
         assert status["power"] == "wall" and status["battery_pct"] == 80.0 and status["schema_version"] == 1
+
+    def test_run_switches_eco_off_by_default_on_a_profiled_model(self, config, mocker):
+        monitor = mocker.patch("ups_sentry.cli.Monitor")
+        monitor.return_value.maybe_poll_and_act.side_effect = KeyboardInterrupt
+        mocker.patch("ups_sentry.cli.create_device")
+        assert main(["--config", config, "run"]) == 0
+        assert monitor.call_args.kwargs["eco_auto_off"] is True
+
+    def test_run_logs_and_raises_on_a_model_without_a_profile(self, tmp_path, mocker, caplog):
+        """Naive version: printing a message and returning 1 is what other errors do, but this one must also reach the log
+        file, since nobody may be watching the terminal."""
+        path = tmp_path / "c.toml"
+        path.write_text('[device]\nmodel = "AC999"\naddress = "A"\n')
+        create = mocker.patch("ups_sentry.cli.create_device")
+        with caplog.at_level(logging.ERROR), pytest.raises(NoEcoProfileError, match="AC999"):
+            main(["--config", str(path), "run"])
+        assert "AC999" in caplog.text
+        create.assert_not_called()
+
+    def test_other_commands_still_work_without_a_profile(self, tmp_path, capsys):
+        path = tmp_path / "c.toml"
+        path.write_text('[device]\nmodel = "AC999"\n')
+        assert main(["--config", str(path), "score", FIXTURE]) == 0
 
     def test_run_alerts_and_reraises_on_a_crash(self, config, mocker):
         device = FakeDevice([RuntimeError("boom")])

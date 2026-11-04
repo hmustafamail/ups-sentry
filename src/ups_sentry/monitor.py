@@ -64,8 +64,8 @@ class Monitor:
         drain_window_minutes, capacity_wh, overhead_watts
             See `RuntimeEstimator`.
         eco_auto_off : bool, optional
-            Switch ECO off when it's seen on, if the driver can. Default False: it changes the station's settings, so
-            it's the owner's decision.
+            Switch ECO off when it's seen on, if the driver can. False here because this class has no profile to go
+            on; `ups-sentry run` decides it with `config.resolve_eco_auto_off`.
         status_writer : callable, optional
             (path, status) -> None. Defaults to an atomic file write.
 

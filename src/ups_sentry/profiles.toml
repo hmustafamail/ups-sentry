@@ -1,10 +1,12 @@
-# What is known about each model, as [driver.MODEL]. All of it is optional, and a user's config overrides any of it.
+# What is known about each model, as [driver.MODEL]. A user's config overrides any of it.
 #
+# eco_registers   required: where the ECO switches live; a write only goes ahead if the driver library agrees. Having
+#                 this is what turns automatic ECO off on. Use {} for a model with no ECO switch.
 # capacity_wh     usable energy when full
 # overhead_watts  the station's own draw on top of its output; `ups-sentry calibrate` works it out from a drain
-# eco_registers   where the ECO switches live; a write only goes ahead if the driver library agrees
 # source          how the numbers were obtained, so the next person can judge them
 #
+# `ups-sentry run` refuses a model with no eco_registers unless monitor.eco_auto_off is set.
 # Without capacity_wh and overhead_watts the estimate falls back to the battery percentage, which reads long near empty.
 # See CONTRIBUTING.md.
 

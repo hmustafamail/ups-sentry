@@ -19,8 +19,9 @@ address = "PUT-THE-ADDRESS-HERE"    # from `ups-sentry scan`
 # min_battery_pct_drop_to_confirm_outage = 2.0
 # failures_to_page_unreachable = 3
 #
-# Switch ECO off whenever it's seen on. Off by default because it changes the station's settings; for UPS use you want
-# it on, since ECO can cut the output at low load.
+# Switch ECO off whenever it's seen on, because it can cut the output at low load. On by default for a model with a
+# profile. A model without one refuses to start until you choose: true uses the driver library's register map,
+# false only alerts you when ECO is on.
 # eco_auto_off = true
 
 [status]

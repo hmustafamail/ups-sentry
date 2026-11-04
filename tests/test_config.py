@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from ups_sentry.config import ConfigError, load_settings
+from ups_sentry.config import ConfigError, NoEcoProfileError, load_settings, resolve_eco_auto_off
 
 
 @pytest.fixture
@@ -45,8 +45,29 @@ class TestLayers:
         assert load_settings(config_file(""), [f"monitor.poll_interval_seconds={text}"])["monitor"][
             "poll_interval_seconds"] == expected
 
-    def test_eco_auto_off_defaults_to_off(self, config_file):
-        assert load_settings(config_file(""))["monitor"]["eco_auto_off"] is False
+
+
+class TestResolveEcoAutoOff:
+    def test_on_for_a_model_with_a_profile(self, config_file):
+        assert resolve_eco_auto_off(load_settings(config_file('[device]\nmodel = "EL10"\n'))) is True
+
+    def test_a_model_without_a_profile_is_refused_by_name(self, config_file):
+        settings = load_settings(config_file('[device]\nmodel = "AC999"\n'))
+        with pytest.raises(NoEcoProfileError, match="AC999"):
+            resolve_eco_auto_off(settings)
+
+    @pytest.mark.parametrize("choice", [True, False])
+    def test_an_explicit_choice_beats_the_missing_profile(self, config_file, choice):
+        settings = load_settings(config_file(f'[device]\nmodel = "AC999"\n[monitor]\neco_auto_off = {str(choice).lower()}\n'))
+        assert resolve_eco_auto_off(settings) is choice
+
+    def test_an_owner_can_turn_it_off_on_a_profiled_model(self, config_file):
+        settings = load_settings(config_file('[device]\nmodel = "EL10"\n[monitor]\neco_auto_off = false\n'))
+        assert resolve_eco_auto_off(settings) is False
+
+    def test_eco_registers_in_the_config_count_as_a_profile(self, config_file):
+        settings = load_settings(config_file('[device]\nmodel = "AC999"\neco_registers = { AC = 1, DC = 2 }\n'))
+        assert resolve_eco_auto_off(settings) is True
 
 
 class TestErrors:

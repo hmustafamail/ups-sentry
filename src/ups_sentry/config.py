@@ -17,7 +17,7 @@ _DEFAULTS: dict[str, dict] = {
     "estimator": {"capacity_wh": None, "overhead_watts": None, "drain_window_minutes": 30.0},
     "monitor": {"poll_interval_seconds": 120.0, "consecutive_reads_to_confirm_transition": 3,
                 "min_battery_pct_drop_to_confirm_outage": 2.0, "failures_to_page_unreachable": 3,
-                "eco_auto_off": False},
+                "eco_auto_off": None},
     "status": {"path": "~/.local/state/ups-sentry/status.json"},
     "log": {"path": None},
     "alerts": {"command": None, "pushover_api_token": None, "pushover_user_key": None},
@@ -27,6 +27,32 @@ _DEFAULTS: dict[str, dict] = {
 
 class ConfigError(ValueError):
     """The config file or a --set can't be used."""
+
+
+class NoEcoProfileError(ConfigError):
+    """The model has no profile saying where its ECO switches are, and nobody has said what to do about ECO."""
+
+
+def resolve_eco_auto_off(settings: dict) -> bool:
+    """Whether the monitor keeps ECO off: yes for a model with known ECO registers, unless the config says otherwise.
+
+    ECO can cut the output at low load, taking down whatever the UPS powers, so a model nobody has decided about refuses
+    to start rather than quietly leaving that risk in place.
+
+    Raises
+    ------
+    NoEcoProfileError
+        If `monitor.eco_auto_off` isn't set and the model has no `eco_registers`, in its profile or the config.
+    """
+    choice = settings["monitor"]["eco_auto_off"]
+    if choice is not None:
+        return choice
+    if settings["device"]["eco_registers"] is not None:
+        return True
+    raise NoEcoProfileError(
+        f"No profile with ECO registers for {settings['device']['driver']} {settings['device']['model']}, so ECO mode "
+        "could cut the output at low load. Set monitor.eco_auto_off = true to switch it off using the driver library's "
+        "register map, or false to only be alerted when it's on; or add the model to profiles.toml.")
 
 
 def load_profiles() -> dict[str, dict[str, dict]]:

@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ups_sentry.alerts import AlertFanout, Alerts, CommandAlerts, PushoverAlerts
-from ups_sentry.config import ConfigError, load_settings
+from ups_sentry.config import ConfigError, NoEcoProfileError, load_settings, resolve_eco_auto_off
 from ups_sentry.device import DeviceReadError, DeviceWriteError, SupportsEcoOff
 from ups_sentry.drills import (
     COLUMNS,
@@ -59,6 +59,11 @@ def _build_alerts(settings: dict) -> Alerts:
 
 def _run(args: argparse.Namespace, settings: dict) -> int:
     _setup_logging(settings["log"]["path"])
+    try:
+        eco_auto_off = resolve_eco_auto_off(settings)
+    except NoEcoProfileError as exc:
+        log.error("%s", exc)
+        raise
     alerts = _build_alerts(settings)
     monitor_settings, estimator = settings["monitor"], settings["estimator"]
     monitor = Monitor(
@@ -69,11 +74,13 @@ def _run(args: argparse.Namespace, settings: dict) -> int:
         consecutive_reads_to_confirm_transition=monitor_settings["consecutive_reads_to_confirm_transition"],
         min_battery_pct_drop_to_confirm_outage=monitor_settings["min_battery_pct_drop_to_confirm_outage"],
         failures_to_page_unreachable=monitor_settings["failures_to_page_unreachable"],
-        eco_auto_off=monitor_settings["eco_auto_off"],
+        eco_auto_off=eco_auto_off,
         drain_window_minutes=estimator["drain_window_minutes"],
         capacity_wh=estimator["capacity_wh"],
         overhead_watts=estimator["overhead_watts"],
     )
+    if not eco_auto_off:
+        log.warning("monitor.eco_auto_off is off: if ECO is on, it can cut the output at low load. You'll only be alerted.")
     if not monitor.counts_energy:
         log.warning("No capacity_wh and overhead_watts for this model: minutes left comes from the battery percentage, "
                     "which reads long near empty. See `ups-sentry calibrate`.")
@@ -128,6 +135,9 @@ def _eco_off(args: argparse.Namespace, settings: dict) -> int:
         print("This driver can't switch ECO off.", file=sys.stderr)
         return 1
     outputs = frozenset(args.outputs or ("AC", "DC"))
+    if not outputs <= {"AC", "DC"}:
+        print(f"Unknown outputs {sorted(outputs - {'AC', 'DC'})}; only AC and DC.", file=sys.stderr)
+        return 2
     if not args.yes and input(f"Write ECO off for {' and '.join(sorted(outputs))}? Type yes: ").strip().lower() != "yes":
         print("Nothing written.")
         return 0
@@ -216,7 +226,8 @@ def _parser() -> argparse.ArgumentParser:
     scan.set_defaults(func=_scan)
     commands.add_parser("probe", help="read the station once and print everything it reports").set_defaults(func=_probe)
     eco = commands.add_parser("eco-off", help="switch ECO off now (stop the monitor first: they'd share the device)")
-    eco.add_argument("outputs", nargs="*", choices=("AC", "DC"), help="default: both")
+    # Not choices=: before Python 3.12, argparse rejects an empty list against them, so giving no outputs would fail.
+    eco.add_argument("outputs", nargs="*", metavar="{AC,DC}", help="default: both")
     eco.add_argument("--yes", action="store_true", help="don't ask")
     eco.set_defaults(func=_eco_off)
     drill = commands.add_parser("drill", help="log readings during a drain to the cut")
@@ -240,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         settings = load_settings(args.config, args.set)
         return args.func(args, settings)
+    except NoEcoProfileError:
+        raise  # already logged; refusing to start must look like a failure to whatever launched it
     except (ConfigError, ValueError, DeviceReadError, DeviceWriteError) as exc:
         print(f"ups-sentry: {exc}", file=sys.stderr)
         return 1
