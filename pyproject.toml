@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ups-sentry"
+dynamic = ["version"]
+description = "UPS monitoring for portable power stations: outage alerts, a better time-left estimate, and ECO mode kept off."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Mustafa Hussain" }]
+keywords = ["ups", "bluetti", "power-station", "bluetooth", "monitoring"]
+dependencies = [
+    # Exact: the driver subclasses this library's private reader methods (src/ups_sentry/drivers/bluetti.py).
+    "bluetti-bt-lib==0.1.8",
+    "bleak",
+    "bleak-retry-connector",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-mock", "ruff"]
+
+[project.scripts]
+ups-sentry = "ups_sentry.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "ups_sentry.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ups_sentry = ["profiles.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "B904", "B905", "UP017"]

@@ -1,0 +1,15 @@
+# What is known about each model, as [driver.MODEL]. All of it is optional, and a user's config overrides any of it.
+#
+# capacity_wh     usable energy when full
+# overhead_watts  the station's own draw on top of its output; `ups-sentry calibrate` works it out from a drain
+# eco_registers   where the ECO switches live; a write only goes ahead if the driver library agrees
+# source          how the numbers were obtained, so the next person can judge them
+#
+# Without capacity_wh and overhead_watts the estimate falls back to the battery percentage, which reads long near empty.
+# See CONTRIBUTING.md.
+
+[bluetti.EL10]
+capacity_wh = 128.0
+overhead_watts = 15.0
+eco_registers = { AC = 2017, DC = 2014 }
+source = "Nameplate capacity; overhead measured on one unit, then checked on a 275-minute drain to the cut at about 12 W output (2026-10-16)."

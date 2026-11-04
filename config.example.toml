@@ -1,0 +1,41 @@
+# Copy to ~/.config/ups-sentry/config.toml. Only [device] is required; everything else shows its default.
+# This file holds credentials, so keep it private: chmod 600 ~/.config/ups-sentry/config.toml
+# Any setting can also be overridden for one run: ups-sentry --set estimator.overhead_watts=18 run
+
+[device]
+driver = "bluetti"
+model = "EL10"                      # bluetti-bt-lib's device type
+address = "PUT-THE-ADDRESS-HERE"    # from `ups-sentry scan`
+
+[estimator]
+# capacity_wh and overhead_watts default to the model's profile (src/ups_sentry/profiles.toml). Set them to override it.
+# capacity_wh = 128.0
+# overhead_watts = 15.0
+# drain_window_minutes = 30.0
+
+[monitor]
+# poll_interval_seconds = 120.0
+# consecutive_reads_to_confirm_transition = 3
+# min_battery_pct_drop_to_confirm_outage = 2.0
+# failures_to_page_unreachable = 3
+#
+# Switch ECO off whenever it's seen on. Off by default because it changes the station's settings; for UPS use you want
+# it on, since ECO can cut the output at low load.
+# eco_auto_off = true
+
+[status]
+# path = "~/.local/state/ups-sentry/status.json"
+
+[log]
+# path = "~/.local/state/ups-sentry/monitor.log"
+
+[alerts]
+# pushover_api_token = "..."
+# pushover_user_key = "..."
+# A command of your own, called with the priority, title and message as its last three arguments:
+# command = ["/usr/local/bin/my-notifier", "--from", "ups-sentry"]
+
+[heartbeat]
+# A dead-man's switch: pinged while the monitor runs, so an outside service can alert when it stops.
+# url = "https://hc-ping.com/your-check-id"
+# interval_seconds = 60.0
