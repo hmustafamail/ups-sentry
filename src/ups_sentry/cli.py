@@ -42,7 +42,8 @@ def _setup_logging(path: str | None) -> None:
         file.parent.mkdir(parents=True, exist_ok=True)
         handlers.append(logging.FileHandler(file))
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", handlers=handlers)
-    logging.getLogger("bleak").setLevel(logging.WARNING)
+    for name in ("bleak", "bleak_retry_connector", "bluetti_bt_lib"):
+        logging.getLogger(name).setLevel(logging.WARNING)  # bluetti-bt-lib logs its session keys at INFO
 
 
 def _build_alerts(settings: dict) -> Alerts:

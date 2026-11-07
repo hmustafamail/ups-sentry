@@ -9,3 +9,8 @@ dist/
 *.log
 # Your own settings hold your device's address and alert credentials.
 config.toml
+# Real readings from your own station: drill logs and status files name its serial number and settings. Scrub one and
+# put it under tests/fixtures/ or research/ to share it.
+/*.csv
+/*.json
+.env
