@@ -6,5 +6,6 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+*.log
 # Your own settings hold your device's address and alert credentials.
 config.toml
